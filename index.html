@@ -310,7 +310,8 @@ function render(){
  else if (snap.stale){ setStatus('off', 'Offline'); $('banner').innerHTML = '<div class="banner"><div><b>Camera offline since ' + hhmm(snap.at) + '.</b> Showing the last known state, it may be out of date.<br><button type="button" class="btn ghost" data-act="demo" style="min-height:38px;margin-top:8px">Try with demo data</button></div></div>'; }
  else { setStatus('live', 'Live · ' + hhmm(new Date())); $('banner').innerHTML = ''; }
 
- if (!snap){ $('vk').textContent = WK[S.workout].label.toUpperCase(); $('vv').textContent = 'Waiting for camera'; $('vs').textContent = ''; $('verdict').className = 'verdict stale'; $('mine').innerHTML = ''; $('times').innerHTML = ''; $('tnote').textContent = ''; $('floor').innerHTML = ''; $('prows').innerHTML = ''; $('pbfoot').innerHTML = ''; $('pbres').innerHTML = ''; $('pbtitle').textContent = ''; $('pbbadge').textContent = ''; return; }
+ [].forEach.call(document.querySelectorAll('#v-home h2, #mine, #times, #tnote, .trip'), function(el){ el.classList.toggle('hidden', !snap); });
+ if (!snap){ $('vk').textContent = WK[S.workout].label.toUpperCase(); $('vv').textContent = 'Waiting for the camera'; $('vs').textContent = 'As soon as the gym camera is on, you’ll see here exactly when to go.'; $('verdict').className = 'verdict stale'; $('verdict').style.background = ''; $('mine').innerHTML = ''; $('times').innerHTML = ''; $('tnote').textContent = ''; $('floor').innerHTML = ''; $('prows').innerHTML = ''; $('pbfoot').innerHTML = ''; $('pbres').innerHTML = ''; $('pbtitle').textContent = ''; $('pbbadge').textContent = ''; return; }
 
  // flash changed machines
  var changed = {};
