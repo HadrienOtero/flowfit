@@ -195,11 +195,18 @@ var DEMO = {updatedAtMs:0, people:2, machines:{
  legpress_1:{name:'Leg press',busy:true,estFreeInMin:6},
  cable_1:{name:'Cable station',busy:false,estFreeInMin:0}}};
 
+// Typical weekday evening at a gym (share of machines in use, 0..1 of the peak), used until the camera has learned 3+ evenings.
+var SHAPE = [[6*60,.25],[12*60,.3],[16*60,.35],[17*60,.5],[17*60+30,.68],[18*60,.88],[18*60+30,1],[19*60,.85],[19*60+30,.55],[20*60,.35],[20*60+30,.25],[21*60,.18],[22*60,.08],[23*60,.03]];
+var PEAK_BUSY = {squat:.95, bench:.9, legpress:.75, cable:.8};
+var TYPICAL = {squat:18, bench:14, legpress:9, cable:7};
+function shapeAt(m){ m = ((m % 1440) + 1440) % 1440; if (m <= SHAPE[0][0]) return SHAPE[0][1]; for (var i = 1; i < SHAPE.length; i++){ if (m <= SHAPE[i][0]){ var a = SHAPE[i-1], b = SHAPE[i]; return a[1] + (b[1]-a[1]) * (m-a[0]) / (b[0]-a[0]); } } return SHAPE[SHAPE.length-1][1]; }
+function nowMin(){ var d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+
 function store(k, v){ try { if (v === undefined) return JSON.parse(localStorage.getItem('ff_' + k)); localStorage.setItem('ff_' + k, JSON.stringify(v)); } catch(e){ return null; } }
 
 var S = {
  data: null, receivedAt: 0, demo: false, connected: false, ever: false,
- view: 'home', workout: store('wk') || 'leg', trip: store('trip') || 15,
+ view: 'home', workout: store('wk') || 'leg', trip: typeof store('trip') === 'number' ? store('trip') : 15,
  fav: store('fav'), sel: null, locked: {}, phase: 'idle', usual: false, sheet: null, prev: {}
 };
 
@@ -242,15 +249,30 @@ function snapshot(){
   var used = busy && m.sinceMs ? Math.max(0, Math.round((Date.now() - m.sinceMs) / 60000)) : 0;
   ms.push({id:id, type:typeOf(id), name:m.name || id, busy:busy, left:left, used:used, st: !busy ? 'free' : (left <= 3 ? 'soon' : 'busy')});
  });
- return {machines: ms, people: d.people || 0, stale: !S.demo && (Date.now() - (d.updatedAtMs || S.receivedAt)) > STALE_MS, at: new Date(d.updatedAtMs || S.receivedAt)};
+ return {machines: ms, people: d.people || 0, stale: !S.demo && (Date.now() - (d.updatedAtMs || S.receivedAt)) > STALE_MS, at: new Date(d.updatedAtMs || S.receivedAt),
+  typical: d.typicalMin || TYPICAL, profile: d.profile || {}, days: d.profileDays || 0};
 }
 
 // ---------- logic ----------
+// How busy this type of machine usually is at a given clock time: learned from the camera after 3+ evenings, else a typical evening.
+function busyProb(snap, type, clock){
+ clock = ((clock % 1440) + 1440) % 1440;
+ var h = Math.floor(clock / 60), slot = (h < 10 ? '0' : '') + h + ':' + (clock % 60 < 30 ? '00' : '30');
+ if (snap.days >= 3 && snap.profile[type] && snap.profile[type][slot] !== undefined) return snap.profile[type][slot];
+ return Math.min(.97, (PEAK_BUSY[type] || .8) * shapeAt(clock));
+}
+// Expected wait for a machine type if you get there in t minutes:
+// close to now, trust the live camera; further out, trust the usual pattern for that time of day.
 function waitFor(snap, type, t){
  if (!type) return 0;
  var us = snap.machines.filter(function(m){ return m.type === type; });
  if (!us.length) return 0;
- return Math.max(0, Math.min.apply(null, us.map(function(m){ return m.left; })) - t);
+ var k = us.length, typ = snap.typical[type] || TYPICAL[type] || 10;
+ var live = Math.max(0, Math.min.apply(null, us.map(function(m){ return m.left; })) - t);
+ var p = busyProb(snap, type, nowMin() + t);
+ var usual = typ * .6 * Math.pow(p, k) + Math.max(0, p - .8) * typ * 1.5;
+ var a = Math.exp(-t / 25);
+ return Math.round(a * live + (1 - a) * usual);
 }
 function simulate(snap, ex, start){
  var t = start, wait = 0, steps = [];
@@ -280,11 +302,15 @@ function planB(snap, ex, start, locked){
 }
 function timing(snap){
  var ex = WK[S.workout].ex, opts = [];
- for (var d = 0; d <= 60; d += 5){ var r = simulate(snap, ex, d + S.trip); opts.push({dep:d, wait:r.wait, end:r.end}); }
+ for (var d = 0; d <= 90; d += 5){ var r = simulate(snap, ex, d + S.trip); opts.push({dep:d, wait:r.wait, end:r.end}); }
  var best = opts[0];
  opts.forEach(function(o){ if (o.wait < best.wait) best = o; });
- if (opts[0].wait - best.wait < 5) best = opts[0];
- return {opts:opts, best:best, now:opts[0]};
+ for (var i = 0; i < opts.length; i++){ if (opts[i].wait <= best.wait + 2){ best = opts[i]; break; } }   // earliest departure that is almost as good
+ var now = opts[0], mode;
+ if (now.wait <= 3) { mode = 'go'; best = now; }
+ else if (now.wait - best.wait >= 5) mode = 'later';
+ else { mode = 'wait'; best = now; }
+ return {opts:opts, best:best, now:now, mode:mode};
 }
 
 // ---------- render ----------
@@ -319,24 +345,39 @@ function render(){
 
  // HOME
  var tm = timing(snap), wk = WK[S.workout], firstEq = wk.ex.filter(function(x){ return x.eq; })[0];
- var goNow = tm.best.dep === 0, saved = tm.now.wait - tm.best.wait;
+ var goNow = tm.mode === 'go', saved = tm.now.wait - tm.best.wait;
+ var need = []; wk.ex.forEach(function(x){ if (x.eq && need.indexOf(x.eq) < 0) need.push(x.eq); });
+ var taken = need.filter(function(t){ var us = snap.machines.filter(function(m){ return m.type === t; }); return us.length && us.every(function(m){ return m.busy; }); });
+ var units = function(t){ return snap.machines.filter(function(m){ return m.type === t; }).length; };
+ var names = taken.map(function(t){ return TYPES[t].toLowerCase() + (units(t) > 1 ? 's' : ''); });
+ var namesTxt = names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+ var verb = (taken.length > 1 || (taken.length === 1 && units(taken[0]) > 1)) ? 'are' : 'is';
+ var pbNow = planB(snap, wk.ex, S.trip, {});
  $('verdict').className = 'verdict' + (snap.stale ? ' stale' : '');
- $('verdict').style.background = snap.stale ? '' : (goNow ? 'var(--lime)' : 'var(--cyan)');
+ $('verdict').style.background = snap.stale ? '' : (tm.mode === 'go' ? 'var(--lime)' : (tm.mode === 'later' ? 'var(--cyan)' : 'var(--gold)'));
  $('vk').textContent = 'TONIGHT · ' + wk.label.toUpperCase();
- $('vv').textContent = goNow ? 'Go now' : 'Leave at ' + inMin(tm.best.dep);
- $('vs').textContent = goNow ? (tm.now.wait === 0 ? 'Everything you need is free. You arrive at ' + inMin(S.trip) + '.' : 'Waiting later won’t save you time. About ' + tm.now.wait + ' min of waiting in total.')
-  : saved + ' min less waiting than leaving now. The ' + TYPES[firstEq.eq].toLowerCase() + ' should be free when you arrive.';
+ if (tm.mode === 'go'){
+  $('vv').textContent = 'Go now';
+  $('vs').textContent = tm.now.wait === 0 ? 'Everything you need is free. You arrive at ' + inMin(S.trip) + '.' : (taken.length ? 'Your machines should be free by the time you arrive at ' + inMin(S.trip) + '.' : 'Your machines are free. You arrive at ' + inMin(S.trip) + ', with about ' + tm.now.wait + ' min of waiting at most.');
+ } else if (tm.mode === 'later'){
+  $('vv').textContent = 'Leave at ' + inMin(tm.best.dep);
+  $('vs').textContent = (taken.length ? 'Your ' + namesTxt + ' ' + verb + ' taken right now. ' : 'The gym is about to get busy. ') + 'Leave at ' + inMin(tm.best.dep) + ' and you’ll wait about ' + saved + ' min less.';
+ } else {
+  $('vv').textContent = 'Expect a ' + tm.now.wait + ' min wait';
+  $('vs').innerHTML = (taken.length ? 'Your ' + esc(namesTxt) + ' ' + verb + ' taken' : 'The gym is busy tonight') + ', and waiting longer won’t help. ' + (pbNow.wait < tm.now.wait ? '<button type="button" data-v="planb" style="border:0;background:rgba(11,18,32,.15);color:inherit;font-weight:800;font-size:14px;padding:8px 12px;border-radius:999px;cursor:pointer;margin-top:8px">Plan B cuts it to ' + pbNow.wait + ' min →</button>' : '');
+ }
  var mine = favs(snap);
  $('mine').innerHTML = mine.length ? mine.map(function(m){ return '<button type="button" class="row" data-m="' + m.id + '"><b>' + esc(m.name) + '</b><span class="pill ' + m.st + '">' + statusText(m) + '</span></button>'; }).join('') : '<div class="row muted" style="cursor:default">No favorites yet. Add some in Live gym.</div>';
- var pick = [0, 10, 20, 30];
- if (pick.indexOf(tm.best.dep) < 0){ pick[3] = tm.best.dep; pick.sort(function(a,b){ return a-b; }); }
+ var pick = [0, 15, 30, 45];
+ if (pick.indexOf(tm.best.dep) < 0){ var ni = 1; pick.forEach(function(p, i){ if (i > 0 && Math.abs(p - tm.best.dep) < Math.abs(pick[ni] - tm.best.dep)) ni = i; }); pick[ni] = tm.best.dep; pick.sort(function(a,b){ return a-b; }); }
  var selDep = S.sel === null || pick.indexOf(S.sel) < 0 ? tm.best.dep : S.sel;
  $('times').innerHTML = pick.map(function(dep){
   var o = tm.opts[dep / 5], on = dep === selDep, c = o.wait <= 2 ? 'var(--lime)' : (o.wait <= 10 ? 'var(--gold)' : 'var(--coral)');
   return '<button type="button" class="time' + (on ? ' on' : '') + '" data-dep="' + dep + '" aria-pressed="' + on + '">' + (dep === tm.best.dep ? '<span class="best">Best</span>' : '') + '<span class="t">' + (dep === 0 ? 'Leave now' : 'Leave at ' + inMin(dep)) + '</span><span class="w disp" style="color:' + c + '">' + (o.wait === 0 ? 'No wait' : o.wait + ' min') + '</span><span class="muted" style="font-size:12px">done by ' + inMin(o.end) + '</span></button>';
  }).join('');
  var os = tm.opts[selDep / 5], diff = tm.now.wait - os.wait;
- $('tnote').innerHTML = '<b>' + (selDep === 0 ? 'Leave now' : 'Leave at ' + inMin(selDep)) + ', arrive at ' + inMin(selDep + S.trip) + '.</b><br><span class="muted">' + (selDep === 0 ? (goNow ? 'This is your best option.' : 'You’d wait about ' + os.wait + ' min for machines.') : (diff > 0 ? diff + ' min less standing in the gym than leaving now.' : 'No time saved compared to leaving now.')) + '</span>';
+ var basis = snap.days >= 3 ? 'Based on the live camera and ' + snap.days + ' evenings of this gym’s data.' : 'Based on the live camera and a typical weekday evening (FlowFit learns this gym’s pattern after 3 evenings).';
+ $('tnote').innerHTML = '<b>' + (selDep === 0 ? 'Leave now' : 'Leave at ' + inMin(selDep)) + ', arrive at ' + inMin(selDep + S.trip) + '.</b><br><span class="muted">' + (selDep === 0 ? (goNow ? 'This is your best option.' : 'You’d wait about ' + os.wait + ' min for machines.') : (diff > 0 ? diff + ' min less standing in the gym than leaving now.' : (diff < 0 ? 'The gym gets busier: ' + (-diff) + ' min more waiting than leaving now.' : 'No time saved compared to leaving now.'))) + '</span><div class="muted" style="font-size:12px;margin-top:8px">' + basis + '</div>';
 
  // GYM
  var favIds = mine.map(function(m){ return m.id; });
