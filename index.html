@@ -120,6 +120,7 @@ footer{padding:26px 18px 0;font-size:12px;color:#64748B;text-align:center;line-h
 <!-- HOME: WHEN TO GO -->
 <section id="v-home">
 <div class="verdict" id="verdict"><div class="k" id="vk"></div><div class="v disp" id="vv">…</div><div class="s" id="vs"></div></div>
+<div id="going" style="margin-top:12px"></div>
 <h2>Your machines</h2>
 <div class="list" id="mine"></div>
 <h2>When to leave</h2>
@@ -137,6 +138,10 @@ footer{padding:26px 18px 0;font-size:12px;color:#64748B;text-align:center;line-h
 
 <!-- PLAN B -->
 <section id="v-planb" class="hidden">
+<div style="display:flex;gap:12px;align-items:flex-start;padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--line);margin-bottom:14px">
+<span style="width:34px;height:34px;border-radius:11px;background:rgba(34,211,238,.15);display:flex;align-items:center;justify-content:center;flex:none"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M7 19l-3-3M7 19l3-3M17 19V5M17 5l-3 3M17 5l3 3" fill="none" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+<div style="font-size:14px;line-height:1.5"><b>Your machines are taken and you can't wait?</b><br><span class="muted">Plan B reorders tonight's workout so you start with what's free. If a machine stays busy, it suggests another exercise that works the same muscles, with no machine needed. You don't have to know the alternatives.</span></div>
+</div>
 <div id="pbres"></div>
 <div class="list">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px"><b id="pbtitle" style="font-size:15px"></b><span class="pill" id="pbbadge"></span></div>
@@ -168,6 +173,7 @@ footer{padding:26px 18px 0;font-size:12px;color:#64748B;text-align:center;line-h
 (function(){
 'use strict';
 var TOPIC = 'flowfit-hadrien-x7q4m2';
+var PLAN_TOPIC = TOPIC + '-plans';   // "I'm going" announcements shared between members
 var STALE_MS = 60000;
 
 var TYPES = {squat:'Squat rack', bench:'Bench press', legpress:'Leg press', cable:'Cable station'};
@@ -207,8 +213,10 @@ function store(k, v){ try { if (v === undefined) return JSON.parse(localStorage.
 var S = {
  data: null, receivedAt: 0, demo: false, connected: false, ever: false,
  view: 'home', workout: store('wk') || 'leg', trip: typeof store('trip') === 'number' ? store('trip') : 15,
- fav: store('fav'), sel: null, locked: {}, phase: 'idle', usual: false, sheet: null, prev: {}
+ fav: store('fav'), sel: null, locked: {}, phase: 'idle', usual: false, sheet: null, prev: {},
+ plans: {}, myPlan: null
 };
+(function(){ var p = store('plan'); if (p && p.arriveAt > Date.now() - 30 * 60000) S.myPlan = p; })();
 
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
@@ -237,6 +245,35 @@ function connect(){
  } catch(e){}
  setInterval(function(){ poll('latest').catch(function(){}); }, 30000);
  setInterval(render, 5000);
+ // shared "I'm going" plans
+ fetch('https://ntfy.sh/' + PLAN_TOPIC + '/json?poll=1&since=3h').then(function(r){ return r.text(); }).then(function(t){
+  t.trim().split('\n').filter(Boolean).forEach(function(l){ try { var m = JSON.parse(l); if (m.event === 'message') acceptPlan(m.message); } catch(e){} });
+  render();
+ }).catch(function(){});
+ try { var ps = new EventSource('https://ntfy.sh/' + PLAN_TOPIC + '/sse'); ps.onmessage = function(e){ try { var m = JSON.parse(e.data); if (m.event === 'message'){ acceptPlan(m.message); render(); } } catch(x){} }; } catch(e){}
+}
+function acceptPlan(msg){
+ var p; try { p = JSON.parse(msg); } catch(e){ return; }
+ if (!p || !p.id) return;
+ if (p.kind === 'plan' && WK[p.wk]) S.plans[p.id] = p;
+ if (p.kind === 'cancel') delete S.plans[p.id];
+}
+function sendPlan(p){ fetch('https://ntfy.sh/' + PLAN_TOPIC, { method: 'POST', body: JSON.stringify(p) }).catch(function(){}); }
+// Other members who said "I'm going" and will be on this type of machine around that time
+function othersOn(type, atMs){
+ var n = 0, mine = S.myPlan && S.myPlan.id;
+ Object.keys(S.plans).forEach(function(id){
+  var p = S.plans[id];
+  if (id === mine || p.arriveAt < Date.now() - 90 * 60000) return;
+  var uses = WK[p.wk].ex.some(function(x){ return x.eq === type; });
+  if (uses && p.arriveAt <= atMs + 20 * 60000 && p.arriveAt + 60 * 60000 >= atMs) n++;
+ });
+ return n;
+}
+function othersArriving(atMs){
+ var n = 0, mine = S.myPlan && S.myPlan.id;
+ Object.keys(S.plans).forEach(function(id){ var p = S.plans[id]; if (id !== mine && Math.abs(p.arriveAt - atMs) <= 15 * 60000) n++; });
+ return n;
 }
 
 function snapshot(){
@@ -272,7 +309,8 @@ function waitFor(snap, type, t){
  var p = busyProb(snap, type, nowMin() + t);
  var usual = typ * .6 * Math.pow(p, k) + Math.max(0, p - .8) * typ * 1.5;
  var a = Math.exp(-t / 25);
- return Math.round(a * live + (1 - a) * usual);
+ var crowd = Math.min(typ * .8, othersOn(type, Date.now() + t * 60000) * typ * .3 / k);   // members heading there at the same time
+ return Math.round(a * live + (1 - a) * usual + crowd);
 }
 function simulate(snap, ex, start){
  var t = start, wait = 0, steps = [];
@@ -336,7 +374,7 @@ function render(){
  else if (snap.stale){ setStatus('off', 'Offline'); $('banner').innerHTML = '<div class="banner"><div><b>Camera offline since ' + hhmm(snap.at) + '.</b> Showing the last known state, it may be out of date.<br><button type="button" class="btn ghost" data-act="demo" style="min-height:38px;margin-top:8px">Try with demo data</button></div></div>'; }
  else { setStatus('live', 'Live · ' + hhmm(new Date())); $('banner').innerHTML = ''; }
 
- [].forEach.call(document.querySelectorAll('#v-home h2, #mine, #times, #tnote, .trip'), function(el){ el.classList.toggle('hidden', !snap); });
+ [].forEach.call(document.querySelectorAll('#v-home h2, #mine, #times, #tnote, .trip, #going'), function(el){ el.classList.toggle('hidden', !snap); });
  if (!snap){ $('vk').textContent = WK[S.workout].label.toUpperCase(); $('vv').textContent = 'Waiting for the camera'; $('vs').textContent = 'As soon as the gym camera is on, you’ll see here exactly when to go.'; $('verdict').className = 'verdict stale'; $('verdict').style.background = ''; $('mine').innerHTML = ''; $('times').innerHTML = ''; $('tnote').textContent = ''; $('floor').innerHTML = ''; $('prows').innerHTML = ''; $('pbfoot').innerHTML = ''; $('pbres').innerHTML = ''; $('pbtitle').textContent = ''; $('pbbadge').textContent = ''; return; }
 
  // flash changed machines
@@ -373,9 +411,15 @@ function render(){
  var selDep = S.sel === null || pick.indexOf(S.sel) < 0 ? tm.best.dep : S.sel;
  $('times').innerHTML = pick.map(function(dep){
   var o = tm.opts[dep / 5], on = dep === selDep, c = o.wait <= 2 ? 'var(--lime)' : (o.wait <= 10 ? 'var(--gold)' : 'var(--coral)');
-  return '<button type="button" class="time' + (on ? ' on' : '') + '" data-dep="' + dep + '" aria-pressed="' + on + '">' + (dep === tm.best.dep ? '<span class="best">Best</span>' : '') + '<span class="t">' + (dep === 0 ? 'Leave now' : 'Leave at ' + inMin(dep)) + '</span><span class="w disp" style="color:' + c + '">' + (o.wait === 0 ? 'No wait' : o.wait + ' min') + '</span><span class="muted" style="font-size:12px">done by ' + inMin(o.end) + '</span></button>';
+  return '<button type="button" class="time' + (on ? ' on' : '') + '" data-dep="' + dep + '" aria-pressed="' + on + '">' + (dep === tm.best.dep ? '<span class="best">Best</span>' : '') + '<span class="t">' + (dep === 0 ? 'Leave now' : 'Leave at ' + inMin(dep)) + '</span><span class="w disp" style="color:' + c + '">' + (o.wait === 0 ? 'No wait' : o.wait + ' min') + '</span><span class="muted" style="font-size:12px">done by ' + inMin(o.end) + '</span>' + (function(){ var og = othersArriving(Date.now() + (dep + S.trip) * 60000); return og ? '<span style="font-size:12px;font-weight:800;color:var(--gold)">' + og + (og === 1 ? ' person' : ' people') + ' going</span>' : ''; })() + '</button>';
  }).join('');
  var os = tm.opts[selDep / 5], diff = tm.now.wait - os.wait;
+ S.lastDep = selDep;
+ if (S.myPlan){
+  $('going').innerHTML = '<div class="note" style="margin-top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;border-color:rgba(163,230,53,.35)"><div><b style="color:var(--lime)">You’re going ✓</b><br><span class="muted">Leave ' + hhmm(new Date(S.myPlan.leaveAt)) + ', arrive ' + hhmm(new Date(S.myPlan.arriveAt)) + '. Other members now see this time as busier.</span></div><button type="button" class="btn ghost" data-act="cancelplan" style="width:auto;padding:0 14px;min-height:40px">Cancel</button></div>';
+ } else {
+  $('going').innerHTML = '<button type="button" class="btn primary" data-act="going">' + (selDep === 0 ? 'I’m going now' : 'I’m going · leave at ' + inMin(selDep)) + '</button><div class="muted" style="font-size:12px;text-align:center;margin-top:8px">Lets other members know when you’ll arrive, so FlowFit spreads people out.</div>';
+ }
  var basis = snap.days >= 3 ? 'Based on the live camera and ' + snap.days + ' evenings of this gym’s data.' : 'Based on the live camera and a typical weekday evening (FlowFit learns this gym’s pattern after 3 evenings).';
  $('tnote').innerHTML = '<b>' + (selDep === 0 ? 'Leave now' : 'Leave at ' + inMin(selDep)) + ', arrive at ' + inMin(selDep + S.trip) + '.</b><br><span class="muted">' + (selDep === 0 ? (goNow ? 'This is your best option.' : 'You’d wait about ' + os.wait + ' min for machines.') : (diff > 0 ? diff + ' min less standing in the gym than leaving now.' : (diff < 0 ? 'The gym gets busier: ' + (-diff) + ' min more waiting than leaving now.' : 'No time saved compared to leaving now.'))) + '</span><div class="muted" style="font-size:12px;margin-top:8px">' + basis + '</div>';
 
@@ -441,6 +485,11 @@ document.addEventListener('click', function(e){
  }
  else if (t.dataset.act === 'build'){ S.phase = 'thinking'; S.usual = false; render(); setTimeout(function(){ S.phase = 'done'; render(); }, 1300); return; }
  else if (t.dataset.act === 'usual'){ S.usual = !S.usual; }
+ else if (t.dataset.act === 'going'){
+  var dep = S.lastDep || 0, p = {kind:'plan', id: Math.random().toString(36).slice(2, 10), wk: S.workout, leaveAt: Date.now() + dep * 60000, arriveAt: Date.now() + (dep + S.trip) * 60000};
+  S.myPlan = p; store('plan', p); S.plans[p.id] = p; sendPlan(p);
+ }
+ else if (t.dataset.act === 'cancelplan'){ if (S.myPlan){ sendPlan({kind:'cancel', id: S.myPlan.id}); delete S.plans[S.myPlan.id]; } S.myPlan = null; store('plan', null); }
  else if (t.dataset.act === 'demo'){ S.demo = true; }
  else if (t.dataset.act === 'live'){ S.demo = false; }
  else return;
