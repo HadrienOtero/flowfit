@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B1220">
+<title>FlowFit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@500;600;700;800&display=swap">
+<style>
+:root{--navy:#0B1220;--card:#111A2E;--card2:#16213A;--line:rgba(148,163,184,.12);--fg:#E6EDF7;--muted:#94A3B8;--cyan:#22D3EE;--lime:#A3E635;--coral:#F97066;--gold:#FCD34D}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:#070C16;color:var(--fg);font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit}
+.app{max-width:460px;min-height:100vh;margin:0 auto;background:var(--navy);position:relative;padding-bottom:96px}
+@media(min-width:520px){.app{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
+.disp{font-family:'Sora',system-ui,sans-serif;letter-spacing:-.03em}
+.muted{color:var(--muted)}
+header{position:sticky;top:0;z-index:20;background:rgba(11,18,32,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:14px 18px 12px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px}
+.status{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:rgba(148,163,184,.1)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.live{background:var(--lime);animation:pulse 1.8s infinite}
+.dot.off{background:var(--coral)}.dot.demo{background:var(--gold)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(163,230,53,.6)}70%{box-shadow:0 0 0 8px rgba(163,230,53,0)}100%{box-shadow:0 0 0 0 rgba(163,230,53,0)}}
+.seg{display:flex;padding:4px;gap:2px;border-radius:999px;background:rgba(148,163,184,.1);margin-top:12px}
+.seg button{flex:1;min-height:38px;border:0;border-radius:999px;background:transparent;color:#B6C2D4;font-weight:800;font-size:14px;cursor:pointer;transition:background .2s,color .2s}
+.seg button.on{background:var(--fg);color:var(--navy)}
+main{padding:18px}
+.banner{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;background:rgba(249,112,102,.1);border:1px solid rgba(249,112,102,.3);margin-bottom:16px;font-size:13px;line-height:1.45}
+.banner.demo{background:rgba(252,211,77,.1);border-color:rgba(252,211,77,.3)}
+.banner button{margin-top:8px}
+.verdict{border-radius:24px;padding:24px;color:var(--navy);transition:background .4s}
+.verdict .k{font-size:12px;font-weight:800;letter-spacing:.1em}
+.verdict .v{font-size:42px;font-weight:800;line-height:1.02;margin-top:8px}
+.verdict .s{font-size:15px;font-weight:700;margin-top:8px;line-height:1.4}
+.verdict.stale{background:var(--card2)!important;color:var(--fg)}
+h2{font-size:13px;font-weight:800;letter-spacing:.08em;color:var(--muted);margin:26px 0 10px;text-transform:uppercase}
+.list{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-top:1px solid var(--line);width:100%;background:transparent;border-left:0;border-right:0;border-bottom:0;text-align:left;cursor:pointer;font-size:15px}
+.row:first-child{border-top:0}
+.row b{font-weight:700}
+.pill{font-size:13px;font-weight:800;padding:6px 11px;border-radius:999px;white-space:nowrap}
+.pill.free{background:rgba(163,230,53,.15);color:#D9F99D}.pill.soon{background:rgba(252,211,77,.16);color:#FDE68A}.pill.busy{background:rgba(249,112,102,.15);color:#FECACA}.pill.na{background:rgba(148,163,184,.12);color:var(--muted)}
+.times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.time{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px;border-radius:18px;border:2px solid transparent;background:var(--card);cursor:pointer;text-align:left}
+.time.on{border-color:var(--cyan);background:var(--card2)}
+.time .t{font-size:13px;font-weight:700;color:var(--muted)}
+.time .w{font-size:22px;font-weight:800}
+.best{position:absolute;top:12px;right:12px;font-size:10px;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--lime);color:var(--navy)}
+.note{margin-top:10px;padding:14px 16px;border-radius:16px;background:var(--card);border:1px solid var(--line);font-size:14px;line-height:1.5}
+.trip{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:16px;background:var(--card);border:1px solid var(--line);margin-top:10px;font-size:14px}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:40px;height:40px;border-radius:12px;border:0;background:rgba(148,163,184,.12);font-size:20px;font-weight:700;cursor:pointer}
+.floor{position:relative;background:#0A101C;border:1px solid var(--line);border-radius:22px;padding:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.floor .lbl{grid-column:1/-1;display:flex;justify-content:space-between;font-size:11px;font-weight:800;letter-spacing:.08em;color:#64748B;text-transform:uppercase}
+.mach{position:relative;min-height:104px;border-radius:16px;border:2px solid;padding:14px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:left;transition:background .5s,border-color .5s,transform .2s}
+.mach:active{transform:scale(.97)}
+.mach.free{background:rgba(163,230,53,.12);border-color:var(--lime)}
+.mach.soon{background:rgba(252,211,77,.12);border-color:var(--gold)}
+.mach.busy{background:rgba(249,112,102,.12);border-color:var(--coral)}
+.mach.na{background:rgba(148,163,184,.06);border-color:rgba(148,163,184,.3)}
+.mach .n{font-weight:800;font-size:15px}
+.mach .st{font-size:13px;font-weight:700}
+.mach .star{position:absolute;top:10px;right:10px}
+.mach.flash{animation:flash .9s}
+@keyframes flash{30%{transform:scale(1.05);box-shadow:0 0 0 6px rgba(255,255,255,.12)}}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:12px;flex-wrap:wrap}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.prows{position:relative;transition:height .3s}
+.prow{position:absolute;left:0;right:0;height:66px;display:grid;grid-template-columns:28px minmax(0,1fr) auto 42px;gap:10px;align-items:center;padding:0 8px 0 14px;border-top:1px solid var(--line);transition:top .7s cubic-bezier(.65,0,.25,1),opacity .3s}
+.prow .ix{width:28px;height:28px;border-radius:9px;background:rgba(148,163,184,.12);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.prow.moved .ix{background:var(--cyan);color:var(--navy)}
+.prow.locked .ix{background:var(--gold);color:var(--navy)}
+.prow .nm{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.tag{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--cyan);margin-left:6px}
+.lk{width:40px;height:40px;border-radius:10px;border:0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748B}
+.lk.on{color:var(--gold);background:rgba(252,211,77,.12)}
+.scanning .prow{opacity:.4}
+.scan{position:absolute;left:0;right:0;height:66px;background:linear-gradient(180deg,transparent,rgba(34,211,238,.25),transparent);animation:scan 1s ease-in-out infinite;pointer-events:none}
+@keyframes scan{0%{top:0}50%{top:calc(100% - 66px)}100%{top:0}}
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:54px;border-radius:999px;border:0;font-weight:800;font-size:16px;cursor:pointer}
+.btn.primary{background:var(--lime);color:var(--navy)}
+.btn.ghost{background:rgba(148,163,184,.12);color:var(--fg);min-height:46px;font-size:14px}
+.result{padding:20px;border-radius:20px;color:var(--navy);margin-bottom:12px;animation:pop .45s cubic-bezier(.2,1.2,.4,1) both}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(11,18,32,.25);border-top-color:var(--navy);animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;z-index:30;display:grid;grid-template-columns:repeat(3,1fr);background:rgba(11,18,32,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+nav button{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:54px;border:0;background:transparent;color:#64748B;font-size:12px;font-weight:800;cursor:pointer;border-radius:14px}
+nav button.on{color:var(--cyan);background:rgba(34,211,238,.08)}
+.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;display:none}
+.sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:460px;z-index:41;background:var(--card);border-radius:24px 24px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom));display:none;animation:up .3s ease both}
+@keyframes up{from{transform:translate(-50%,40px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.sheet.open,.sheetbg.open{display:block}
+.grip{width:40px;height:5px;border-radius:9px;background:rgba(148,163,184,.3);margin:0 auto 16px}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.kv div{padding:14px;border-radius:14px;background:var(--navy)}
+.kv .k{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+.kv .v{font-size:20px;font-weight:800;margin-top:4px}
+.hidden{display:none!important}
+footer{padding:26px 18px 0;font-size:12px;color:#64748B;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<div class="top">
+<div class="brand"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#16213A"/><path d="M6 19h5l3-8 4 12 3-7h5" fill="none" stroke="#22D3EE" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="16" r="2.4" fill="#A3E635"/></svg><span class="disp">FlowFit</span></div>
+<div class="status" id="status"><span class="dot" id="sdot"></span><span id="stext">Connecting…</span></div>
+</div>
+<div class="seg" role="group" aria-label="Tonight's workout" id="wk"></div>
+</header>
+
+<main>
+<div id="banner"></div>
+
+<!-- HOME: WHEN TO GO -->
+<section id="v-home">
+<div class="verdict" id="verdict"><div class="k" id="vk"></div><div class="v disp" id="vv">…</div><div class="s" id="vs"></div></div>
+<h2>Your machines</h2>
+<div class="list" id="mine"></div>
+<h2>When to leave</h2>
+<div class="times" id="times"></div>
+<div class="note" id="tnote"></div>
+<div class="trip"><span>Trip to the gym</span><div class="step"><button type="button" id="tminus" aria-label="Shorter trip">−</button><b id="tval" style="min-width:58px;text-align:center"></b><button type="button" id="tplus" aria-label="Longer trip">+</button></div></div>
+</section>
+
+<!-- LIVE GYM -->
+<section id="v-gym" class="hidden">
+<div class="floor" id="floor"></div>
+<div class="legend"><span><span class="sw" style="background:var(--lime)"></span>Free</span><span><span class="sw" style="background:var(--gold)"></span>Free in ≤3 min</span><span><span class="sw" style="background:var(--coral)"></span>Taken</span></div>
+<p class="muted" style="font-size:13px;margin:14px 0 0;line-height:1.5">Tap a machine for details. Tap ★ to add it to your machines. Only counts leave the camera: no images, no faces.</p>
+</section>
+
+<!-- PLAN B -->
+<section id="v-planb" class="hidden">
+<div id="pbres"></div>
+<div class="list">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px"><b id="pbtitle" style="font-size:15px"></b><span class="pill" id="pbbadge"></span></div>
+<div class="prows" id="prows"></div>
+<div style="padding:14px 16px;border-top:1px solid var(--line)" id="pbfoot"></div>
+</div>
+</section>
+
+<footer>FlowFit live prototype · Lyon<br>Live data comes from one camera; machine waits are estimates.</footer>
+</main>
+
+<nav aria-label="Sections">
+<button type="button" data-v="home" class="on"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>When to go</button>
+<button type="button" data-v="gym"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="6.5" y="7.5" width="4" height="4" rx="1" fill="currentColor"/><rect x="13.5" y="7.5" width="4" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="6.5" y="13.5" width="11" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Live gym</button>
+<button type="button" data-v="planb"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M7 19l-3-3M7 19l3-3M17 19V5M17 5l-3 3M17 5l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Plan B</button>
+</nav>
+</div>
+
+<div class="sheetbg" id="sheetbg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shname">
+<div class="grip"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div class="disp" style="font-size:24px;font-weight:800" id="shname"></div><span class="pill" id="shpill"></span></div>
+<div class="kv"><div><div class="k">IN USE FOR</div><div class="v" id="shuse"></div></div><div><div class="k">IF YOU LEAVE NOW</div><div class="v" id="sharr"></div></div></div>
+<button type="button" class="btn primary" id="shstar"></button>
+<button type="button" class="btn ghost" id="shclose" style="margin-top:10px">Close</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+var TOPIC = 'flowfit-hadrien-x7q4m2';
+var STALE_MS = 60000;
+
+var TYPES = {squat:'Squat rack', bench:'Bench press', legpress:'Leg press', cable:'Cable station'};
+var WK = {
+ leg:{label:'Leg day', ex:[
+  {id:'a',n:'Back squat',eq:'squat',sets:'4 × 6',d:16,tier:1,alt:{n:'Bulgarian split squat',eq:null,sets:'3 × 8 / leg'}},
+  {id:'b',n:'Leg press',eq:'legpress',sets:'3 × 12',d:9,tier:2,alt:{n:'Walking lunges',eq:null,sets:'3 × 12 / leg'}},
+  {id:'c',n:'Romanian deadlift',eq:null,sets:'3 × 8',d:10,tier:2},
+  {id:'d',n:'Cable pull-through',eq:'cable',sets:'3 × 15',d:6,tier:3}]},
+ push:{label:'Push day', ex:[
+  {id:'a',n:'Bench press',eq:'bench',sets:'4 × 6',d:15,tier:1,alt:{n:'Weighted push-ups',eq:null,sets:'4 × 10'}},
+  {id:'b',n:'Overhead press',eq:'squat',sets:'3 × 8',d:10,tier:2,alt:{n:'Seated dumbbell press',eq:null,sets:'3 × 10'}},
+  {id:'c',n:'Cable fly',eq:'cable',sets:'3 × 12',d:7,tier:3},
+  {id:'d',n:'Triceps pushdown',eq:'cable',sets:'3 × 12',d:6,tier:3}]},
+ pull:{label:'Pull day', ex:[
+  {id:'a',n:'Pull-ups',eq:null,sets:'4 × max',d:9,tier:1},
+  {id:'b',n:'Barbell row',eq:'squat',sets:'4 × 8',d:11,tier:2,alt:{n:'One-arm dumbbell row',eq:null,sets:'4 × 10'}},
+  {id:'c',n:'Seated cable row',eq:'cable',sets:'3 × 10',d:9,tier:2,alt:{n:'Chest-supported DB row',eq:null,sets:'3 × 10'}},
+  {id:'d',n:'Face pull',eq:'cable',sets:'3 × 15',d:6,tier:3}]}
+};
+var DEMO = {updatedAtMs:0, people:2, machines:{
+ squat_1:{name:'Squat rack 1',busy:true,estFreeInMin:14},
+ squat_2:{name:'Squat rack 2',busy:true,estFreeInMin:22},
+ bench_1:{name:'Bench press',busy:false,estFreeInMin:0},
+ legpress_1:{name:'Leg press',busy:true,estFreeInMin:6},
+ cable_1:{name:'Cable station',busy:false,estFreeInMin:0}}};
+
+function store(k, v){ try { if (v === undefined) return JSON.parse(localStorage.getItem('ff_' + k)); localStorage.setItem('ff_' + k, JSON.stringify(v)); } catch(e){ return null; } }
+
+var S = {
+ data: null, receivedAt: 0, demo: false, connected: false, ever: false,
+ view: 'home', workout: store('wk') || 'leg', trip: store('trip') || 15,
+ fav: store('fav'), sel: null, locked: {}, phase: 'idle', usual: false, sheet: null, prev: {}
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function hhmm(d){ return d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes(); }
+function inMin(m){ return hhmm(new Date(Date.now() + m * 60000)); }
+function typeOf(id){ return id.replace(/_\d+$/, ''); }
+
+// ---------- live data ----------
+function accept(msg){
+ var p; try { p = JSON.parse(msg); } catch(e){ return; }
+ if (!p || !p.machines) return;
+ S.data = p; S.receivedAt = Date.now(); S.ever = true; S.demo = false; render();
+}
+function poll(since){
+ return fetch('https://ntfy.sh/' + TOPIC + '/json?poll=1&since=' + since).then(function(r){ return r.text(); }).then(function(t){
+  var lines = t.trim().split('\n').filter(Boolean);
+  for (var i = lines.length - 1; i >= 0; i--){ var m = JSON.parse(lines[i]); if (m.event === 'message' && m.message && m.message.indexOf('machines') > -1){ accept(m.message); return true; } }
+  return false;
+ });
+}
+function connect(){
+ poll('latest').catch(function(){ return false; }).then(function(ok){ return ok ? ok : poll('12h'); }).catch(function(){}).then(function(){ S.connected = true; render(); });
+ try {
+  var es = new EventSource('https://ntfy.sh/' + TOPIC + '/sse');
+  es.onmessage = function(e){ try { var m = JSON.parse(e.data); if (m.event === 'message') accept(m.message); } catch(x){} };
+ } catch(e){}
+ setInterval(function(){ poll('latest').catch(function(){}); }, 30000);
+ setInterval(render, 5000);
+}
+
+function snapshot(){
+ var d = S.demo ? DEMO : S.data;
+ if (!d) return null;
+ var ageMin = S.demo ? 0 : Math.max(0, (Date.now() - (d.updatedAtMs || S.receivedAt)) / 60000);
+ var ms = [];
+ Object.keys(d.machines).forEach(function(id){
+  var m = d.machines[id], busy = !!m.busy, left = busy ? Math.max(1, Math.round((m.estFreeInMin || 1) - ageMin)) : 0;
+  var used = busy && m.sinceMs ? Math.max(0, Math.round((Date.now() - m.sinceMs) / 60000)) : 0;
+  ms.push({id:id, type:typeOf(id), name:m.name || id, busy:busy, left:left, used:used, st: !busy ? 'free' : (left <= 3 ? 'soon' : 'busy')});
+ });
+ return {machines: ms, people: d.people || 0, stale: !S.demo && (Date.now() - (d.updatedAtMs || S.receivedAt)) > STALE_MS, at: new Date(d.updatedAtMs || S.receivedAt)};
+}
+
+// ---------- logic ----------
+function waitFor(snap, type, t){
+ if (!type) return 0;
+ var us = snap.machines.filter(function(m){ return m.type === type; });
+ if (!us.length) return 0;
+ return Math.max(0, Math.min.apply(null, us.map(function(m){ return m.left; })) - t);
+}
+function simulate(snap, ex, start){
+ var t = start, wait = 0, steps = [];
+ ex.forEach(function(x){ var w = waitFor(snap, x.eq, t); steps.push({x:x, n:x.n, eq:x.eq, sets:x.sets, w:w}); wait += w; t += w + x.d; });
+ return {steps:steps, wait:wait, end:t};
+}
+function planB(snap, ex, start, locked){
+ var rest = ex.filter(function(x){ return !locked[x.id]; }), t = start, wait = 0, steps = [];
+ for (var pos = 0; pos < ex.length; pos++){
+  var fx = ex[pos], pick;
+  if (locked[fx.id]){ var w0 = waitFor(snap, fx.eq, t); pick = {x:fx, u:{n:fx.n, eq:fx.eq, sets:fx.sets, w:w0, sw:false}}; }
+  else {
+   var minT = Math.min.apply(null, rest.map(function(x){ return x.tier; })), best = null;
+   rest.forEach(function(x, i){
+    if (x.tier > minT + 1) return;
+    var w = waitFor(snap, x.eq, t), u = {n:x.n, eq:x.eq, sets:x.sets, w:w, sw:false};
+    if (x.alt){ var wa = waitFor(snap, x.alt.eq, t); if (w > 5 && wa + 3 < w) u = {n:x.alt.n, eq:x.alt.eq, sets:x.alt.sets, w:wa, sw:true, wOrig:w}; }
+    var score = u.w + (x.tier - minT) * 2.5 + ex.indexOf(x) * .01;
+    if (!best || score < best.score) best = {i:i, x:x, u:u, score:score};
+   });
+   rest.splice(best.i, 1); pick = best;
+  }
+  steps.push({x:pick.x, n:pick.u.n, eq:pick.u.eq, sets:pick.u.sets, w:pick.u.w, sw:pick.u.sw, wOrig:pick.u.wOrig});
+  wait += pick.u.w; t += pick.u.w + pick.x.d;
+ }
+ return {steps:steps, wait:wait, end:t};
+}
+function timing(snap){
+ var ex = WK[S.workout].ex, opts = [];
+ for (var d = 0; d <= 60; d += 5){ var r = simulate(snap, ex, d + S.trip); opts.push({dep:d, wait:r.wait, end:r.end}); }
+ var best = opts[0];
+ opts.forEach(function(o){ if (o.wait < best.wait) best = o; });
+ if (opts[0].wait - best.wait < 5) best = opts[0];
+ return {opts:opts, best:best, now:opts[0]};
+}
+
+// ---------- render ----------
+function setStatus(cls, txt){ $('sdot').className = 'dot ' + cls; $('stext').textContent = txt; }
+function favs(snap){
+ var f = S.fav;
+ if (!f) f = snap.machines.map(function(m){ return m.id; });
+ return snap.machines.filter(function(m){ return f.indexOf(m.id) > -1; });
+}
+function statusText(m){ return m.st === 'free' ? 'Free' : (m.st === 'soon' ? 'Free in ' + m.left + ' min' : m.left + ' min wait'); }
+
+function render(){
+ // workout picker
+ $('wk').innerHTML = Object.keys(WK).map(function(k){ return '<button type="button" data-wk="' + k + '" class="' + (S.workout === k ? 'on' : '') + '" aria-pressed="' + (S.workout === k) + '">' + WK[k].label + '</button>'; }).join('');
+ $('tval').textContent = S.trip + ' min';
+ ['home','gym','planb'].forEach(function(v){ $('v-' + v).classList.toggle('hidden', S.view !== v); });
+ [].forEach.call(document.querySelectorAll('nav button'), function(b){ b.classList.toggle('on', b.getAttribute('data-v') === S.view); });
+
+ var snap = snapshot();
+ // status + banner
+ if (S.demo){ setStatus('demo', 'Demo data'); $('banner').innerHTML = '<div class="banner demo"><div><b>Demo data.</b> The camera isn’t sending right now, so this shows an example evening. <br><button type="button" class="btn ghost" data-act="live" style="min-height:38px;margin-top:8px">Back to live</button></div></div>'; }
+ else if (!snap){ setStatus(S.connected ? 'off' : 'off', S.connected ? 'Camera offline' : 'Connecting…'); $('banner').innerHTML = S.connected ? '<div class="banner"><div><b>The gym camera is offline.</b> No live data yet. Start the camera, or try the app with example data.<br><button type="button" class="btn ghost" data-act="demo" style="min-height:38px;margin-top:8px">Try with demo data</button></div></div>' : ''; }
+ else if (snap.stale){ setStatus('off', 'Offline'); $('banner').innerHTML = '<div class="banner"><div><b>Camera offline since ' + hhmm(snap.at) + '.</b> Showing the last known state, it may be out of date.<br><button type="button" class="btn ghost" data-act="demo" style="min-height:38px;margin-top:8px">Try with demo data</button></div></div>'; }
+ else { setStatus('live', 'Live · ' + hhmm(new Date())); $('banner').innerHTML = ''; }
+
+ if (!snap){ $('vk').textContent = WK[S.workout].label.toUpperCase(); $('vv').textContent = 'Waiting for camera'; $('vs').textContent = ''; $('verdict').className = 'verdict stale'; $('mine').innerHTML = ''; $('times').innerHTML = ''; $('tnote').textContent = ''; $('floor').innerHTML = ''; $('prows').innerHTML = ''; $('pbfoot').innerHTML = ''; $('pbres').innerHTML = ''; $('pbtitle').textContent = ''; $('pbbadge').textContent = ''; return; }
+
+ // flash changed machines
+ var changed = {};
+ snap.machines.forEach(function(m){ if (S.prev[m.id] !== undefined && S.prev[m.id] !== m.st) changed[m.id] = 1; S.prev[m.id] = m.st; });
+
+ // HOME
+ var tm = timing(snap), wk = WK[S.workout], firstEq = wk.ex.filter(function(x){ return x.eq; })[0];
+ var goNow = tm.best.dep === 0, saved = tm.now.wait - tm.best.wait;
+ $('verdict').className = 'verdict' + (snap.stale ? ' stale' : '');
+ $('verdict').style.background = snap.stale ? '' : (goNow ? 'var(--lime)' : 'var(--cyan)');
+ $('vk').textContent = 'TONIGHT · ' + wk.label.toUpperCase();
+ $('vv').textContent = goNow ? 'Go now' : 'Leave at ' + inMin(tm.best.dep);
+ $('vs').textContent = goNow ? (tm.now.wait === 0 ? 'Everything you need is free. You arrive at ' + inMin(S.trip) + '.' : 'Waiting later won’t save you time. About ' + tm.now.wait + ' min of waiting in total.')
+  : saved + ' min less waiting than leaving now. The ' + TYPES[firstEq.eq].toLowerCase() + ' should be free when you arrive.';
+ var mine = favs(snap);
+ $('mine').innerHTML = mine.length ? mine.map(function(m){ return '<button type="button" class="row" data-m="' + m.id + '"><b>' + esc(m.name) + '</b><span class="pill ' + m.st + '">' + statusText(m) + '</span></button>'; }).join('') : '<div class="row muted" style="cursor:default">No favorites yet. Add some in Live gym.</div>';
+ var pick = [0, 10, 20, 30];
+ if (pick.indexOf(tm.best.dep) < 0){ pick[3] = tm.best.dep; pick.sort(function(a,b){ return a-b; }); }
+ var selDep = S.sel === null || pick.indexOf(S.sel) < 0 ? tm.best.dep : S.sel;
+ $('times').innerHTML = pick.map(function(dep){
+  var o = tm.opts[dep / 5], on = dep === selDep, c = o.wait <= 2 ? 'var(--lime)' : (o.wait <= 10 ? 'var(--gold)' : 'var(--coral)');
+  return '<button type="button" class="time' + (on ? ' on' : '') + '" data-dep="' + dep + '" aria-pressed="' + on + '">' + (dep === tm.best.dep ? '<span class="best">Best</span>' : '') + '<span class="t">' + (dep === 0 ? 'Leave now' : 'Leave at ' + inMin(dep)) + '</span><span class="w disp" style="color:' + c + '">' + (o.wait === 0 ? 'No wait' : o.wait + ' min') + '</span><span class="muted" style="font-size:12px">done by ' + inMin(o.end) + '</span></button>';
+ }).join('');
+ var os = tm.opts[selDep / 5], diff = tm.now.wait - os.wait;
+ $('tnote').innerHTML = '<b>' + (selDep === 0 ? 'Leave now' : 'Leave at ' + inMin(selDep)) + ', arrive at ' + inMin(selDep + S.trip) + '.</b><br><span class="muted">' + (selDep === 0 ? (goNow ? 'This is your best option.' : 'You’d wait about ' + os.wait + ' min for machines.') : (diff > 0 ? diff + ' min less standing in the gym than leaving now.' : 'No time saved compared to leaving now.')) + '</span>';
+
+ // GYM
+ var favIds = mine.map(function(m){ return m.id; });
+ $('floor').innerHTML = '<div class="lbl"><span>Live gym</span><span>' + snap.people + ' ' + (snap.people === 1 ? 'person' : 'people') + ' detected</span></div>' + snap.machines.map(function(m){
+  return '<button type="button" class="mach ' + m.st + (changed[m.id] ? ' flash' : '') + '" data-m="' + m.id + '" aria-label="' + esc(m.name) + ': ' + statusText(m) + '">' + (favIds.indexOf(m.id) > -1 ? '<svg class="star" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="#FCD34D"/></svg>' : '') + '<span class="n">' + esc(m.name) + '</span><span class="st">' + (m.st === 'free' ? 'Free' : (m.st === 'soon' ? 'Free in ' + m.left + ' min' : 'Taken · ' + m.left + ' min')) + '</span></button>';
+ }).join('');
+
+ // PLAN B
+ var start = S.trip, U = simulate(snap, wk.ex, start), B = planB(snap, wk.ex, start, S.locked);
+ var done = S.phase === 'done', thinking = S.phase === 'thinking', showB = done && !S.usual;
+ var posB = {}; B.steps.forEach(function(st, i){ posB[st.x.id] = {i:i, st:st}; });
+ $('prows').className = 'prows' + (thinking ? ' scanning' : '');
+ $('prows').style.height = (wk.ex.length * 66) + 'px';
+ $('prows').innerHTML = (thinking ? '<div class="scan"></div>' : '') + wk.ex.map(function(x, oi){
+  var b = posB[x.id], st = showB ? b.st : U.steps[oi], idx = showB ? b.i : oi, moved = showB && b.i !== oi, lk = !!S.locked[x.id];
+  var tag = showB ? (lk ? 'kept' : (st.sw ? 'swap' : (moved && b.i < oi ? 'moved up' : ''))) : '';
+  var sub = (st.eq ? TYPES[st.eq] : 'No machine needed') + ' · ' + st.sets;
+  return '<div class="prow' + (moved ? ' moved' : '') + (lk && showB ? ' locked' : '') + '" style="top:' + (idx * 66) + 'px;transition-delay:' + (showB ? oi * 70 : 0) + 'ms"><span class="ix">' + (idx + 1) + '</span><div style="min-width:0"><div class="nm">' + esc(st.n) + (tag ? '<span class="tag">' + tag + '</span>' : '') + '</div><div class="sub">' + sub + '</div></div><span class="pill ' + (st.w > 0 ? 'busy' : 'free') + '">' + (st.w > 0 ? st.w + ' min wait' : 'Free') + '</span>' + (done ? '<button type="button" class="lk' + (lk ? ' on' : '') + '" data-lock="' + x.id + '" aria-pressed="' + lk + '" aria-label="' + (lk ? 'Unlock ' : 'Keep in place: ') + esc(x.n) + '"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="' + (lk ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>' : '<span></span>') + '</div>';
+ }).join('');
+ var shown = showB ? B.wait : U.wait;
+ $('pbtitle').textContent = (showB ? 'Your Plan B · ' : 'Your usual ') + (showB ? wk.label : wk.label.toLowerCase());
+ $('pbbadge').className = 'pill ' + (shown > 0 ? 'busy' : 'free');
+ $('pbbadge').textContent = shown > 0 ? shown + ' min waiting' : 'No waiting';
+ var sv = Math.max(0, U.wait - B.wait);
+ $('pbres').innerHTML = done ? '<div class="result" style="background:' + (sv > 0 ? 'var(--lime)' : 'var(--cyan)') + '"><div class="disp" style="font-size:26px;font-weight:800">' + (sv > 0 ? 'You save ' + sv + ' minutes.' : 'Your usual order is already the fastest.') + '</div><div style="font-size:14px;font-weight:700;margin-top:4px">Done by ' + inMin(B.end) + (sv > 0 ? ' instead of ' + inMin(U.end) : '') + '. Leaving now, arriving at ' + inMin(start) + '.</div></div>' : '';
+ $('pbfoot').innerHTML = done ? '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted" style="font-size:13px">Tap a lock to keep an exercise in place.</span><button type="button" class="btn ghost" data-act="usual" style="width:auto;padding:0 16px;min-height:40px">' + (S.usual ? 'Back to Plan B' : 'Compare with usual') + '</button></div>'
+  : '<button type="button" class="btn primary" data-act="build"' + (thinking ? ' disabled' : '') + '>' + (thinking ? '<span class="spin"></span>Finding what’s free…' : 'Build my Plan B') + '</button>';
+
+ // sheet
+ if (S.sheet){
+  var m = snap.machines.filter(function(x){ return x.id === S.sheet; })[0];
+  if (m){
+   var arr = Math.max(0, m.left - S.trip), isFav = favIds.indexOf(m.id) > -1;
+   $('shname').textContent = m.name;
+   $('shpill').className = 'pill ' + m.st; $('shpill').textContent = m.st === 'free' ? 'Free' : 'Taken';
+   $('shuse').textContent = m.busy ? (m.used ? m.used + ' min' : 'Just now') : 'Not in use';
+   $('sharr').textContent = arr === 0 ? 'Free' : arr + ' min wait';
+   $('sharr').style.color = arr === 0 ? 'var(--lime)' : 'var(--coral)';
+   $('shstar').textContent = isFav ? '★ In your machines · remove' : '☆ Add to your machines';
+   $('shstar').className = 'btn ' + (isFav ? 'ghost' : 'primary');
+  }
+ }
+}
+
+// ---------- events ----------
+document.addEventListener('click', function(e){
+ var t = e.target.closest('button'); if (!t) return;
+ var snap = snapshot();
+ if (t.dataset.wk){ S.workout = t.dataset.wk; S.sel = null; S.phase = 'idle'; S.locked = {}; S.usual = false; store('wk', S.workout); }
+ else if (t.dataset.v){ S.view = t.dataset.v; window.scrollTo(0, 0); }
+ else if (t.dataset.dep !== undefined){ S.sel = +t.dataset.dep; }
+ else if (t.dataset.m){ S.sheet = t.dataset.m; $('sheet').classList.add('open'); $('sheetbg').classList.add('open'); }
+ else if (t.dataset.lock){ if (S.locked[t.dataset.lock]) delete S.locked[t.dataset.lock]; else S.locked[t.dataset.lock] = true; S.usual = false; }
+ else if (t.id === 'tminus'){ S.trip = Math.max(0, S.trip - 5); store('trip', S.trip); }
+ else if (t.id === 'tplus'){ S.trip = Math.min(60, S.trip + 5); store('trip', S.trip); }
+ else if (t.id === 'shclose'){ closeSheet(); }
+ else if (t.id === 'shstar' && snap){
+  var f = S.fav || snap.machines.map(function(m){ return m.id; });
+  f = f.indexOf(S.sheet) > -1 ? f.filter(function(x){ return x !== S.sheet; }) : f.concat([S.sheet]);
+  S.fav = f; store('fav', f);
+ }
+ else if (t.dataset.act === 'build'){ S.phase = 'thinking'; S.usual = false; render(); setTimeout(function(){ S.phase = 'done'; render(); }, 1300); return; }
+ else if (t.dataset.act === 'usual'){ S.usual = !S.usual; }
+ else if (t.dataset.act === 'demo'){ S.demo = true; }
+ else if (t.dataset.act === 'live'){ S.demo = false; }
+ else return;
+ render();
+});
+function closeSheet(){ S.sheet = null; $('sheet').classList.remove('open'); $('sheetbg').classList.remove('open'); }
+$('sheetbg').addEventListener('click', closeSheet);
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && S.sheet) closeSheet(); });
+
+render();
+connect();
+})();
+</script>
+</body>
+</html>
